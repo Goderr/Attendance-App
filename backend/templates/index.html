@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Recognition Attendance System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .camera-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        #video {
+            width: 100%;
+            max-width: 640px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #canvas {
+            display: none;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .step {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-left: 3px solid #4CAF50;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Face Recognition Attendance System</h1>
+    
+    <div class="form-container">
+        <h2>Register</h2>
+        <div class="step">
+            <h3>Step 1: Enter Your Details</h3>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="regName">Name:</label>
+                    <input type="text" id="regName" required>
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Email:</label>
+                    <input type="email" id="regEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Password:</label>
+                    <input type="password" id="regPassword" required>
+                </div>
+            </form>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Enroll Your Face</h3>
+            <div class="camera-container">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+                <div>
+                    <button id="startCamera">Start Camera</button>
+                    <button id="capturePhoto" disabled>Capture Photo</button>
+                    <button id="registerUser" disabled>Complete Registration</button>
+                </div>
+                <div id="enrollStatus" class="status"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-container">
+        <h2>Login with Face Recognition</h2>
+        <div class="camera-container">
+            <video id="loginVideo" autoplay playsinline></video>
+            <canvas id="loginCanvas"></canvas>
+            <div>
+                <button id="startLoginCamera">Start Camera</button>
+                <button id="recognizeFace" disabled>Recognize & Login</button>
+            </div>
+            <div id="loginStatus" class="status"></div>
+        </div>
+    </div>
+
+    <div id="response"></div>
+
+    <script>
+        let capturedImage = null;
+        let currentUser = null;
+
+        // Registration Camera Setup
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startCameraBtn = document.getElementById('startCamera');
+        const capturePhotoBtn = document.getElementById('capturePhoto');
+        const registerUserBtn = document.getElementById('registerUser');
+        const enrollStatus = document.getElementById('enrollStatus');
+
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Your browser does not support camera access');
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+                
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    enrollStatus.textContent = 'Camera started successfully';
+                    enrollStatus.className = 'status success';
+                    capturePhotoBtn.disabled = false;
+                };
+            } catch (err) {
+                console.error('Camera error:', err);
+                enrollStatus.textContent = `Camera error: ${err.message}`;
+                enrollStatus.className = 'status error';
+            }
+        });
+
+        capturePhotoBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            capturedImage = canvas.toDataURL('image/jpeg');
+            enrollStatus.textContent = 'Photo captured! Click Complete Registration to finish.';
+            enrollStatus.className = 'status success';
+            registerUserBtn.disabled = false;
+        });
+
+        registerUserBtn.addEventListener('click', async () => {
+            if (!capturedImage) {
+                enrollStatus.textContent = 'Please capture a photo first';
+                enrollStatus.className = 'status error';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('regName').value);
+            formData.append('email', document.getElementById('regEmail').value);
+            formData.append('password', document.getElementById('regPassword').value);
+            
+            const blob = await (await fetch(capturedImage)).blob();
+            formData.append('image', blob, 'face.jpg');
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showResponse(data);
+                if (response.ok) {
+                    enrollStatus.textContent = 'Registration successful! You can now login.';
+                    enrollStatus.className = 'status success';
+                    // Clear the form
+                    document.getElementById('registerForm').reset();
+                    capturedImage = null;
+                    registerUserBtn.disabled = true;
+                    capturePhotoBtn.disabled = true;
+                }
+            } catch (err) {
+                enrollStatus.textContent = 'Error during registration';
+                enrollStatus.className = 'status error';
+            }
+        });
+
+        // Login Camera Setup
+        const loginVideo = document.getElementById('loginVideo');
+        const loginCanvas = document.getElementById('loginCanvas');
+        const startLoginCameraBtn = document.getElementById('startLoginCamera');
+        const recognizeFaceBtn = document.getElementById('recognizeFace');
+        const loginStatus = document.getElementById('loginStatus');
+
+        startLoginCameraBtn.addEventListener('click', async () => {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Your browser does not support camera access');
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+                
+                loginVideo.srcObject = stream;
+                loginVideo.onloadedmetadata = () => {
+                    loginVideo.play();
+                    loginStatus.textContent = 'Camera started successfully';
+                    loginStatus.className = 'status success';
+                    recognizeFaceBtn.disabled = false;
+                };
+            } catch (err) {
+                console.error('Camera error:', err);
+                loginStatus.textContent = `Camera error: ${err.message}`;
+                loginStatus.className = 'status error';
+            }
+        });
+
+        recognizeFaceBtn.addEventListener('click', async () => {
+            loginCanvas.width = loginVideo.videoWidth;
+            loginCanvas.height = loginVideo.videoHeight;
+            loginCanvas.getContext('2d').drawImage(loginVideo, 0, 0);
+            const imageBlob = await (await fetch(loginCanvas.toDataURL('image/jpeg'))).blob();
+            const formData = new FormData();
+            formData.append('image', imageBlob, 'face.jpg');
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    loginStatus.textContent = `Welcome ${data.user.name}! Attendance marked.`;
+                    loginStatus.className = 'status success';
+                    localStorage.setItem('token', data.access_token);
+                    currentUser = data.user;
+                } else {
+                    loginStatus.textContent = data.error || 'Face not recognized';
+                    loginStatus.className = 'status error';
+                }
+                showResponse(data);
+            } catch (err) {
+                loginStatus.textContent = 'Error during login';
+                loginStatus.className = 'status error';
+            }
+        });
+
+        function showResponse(data) {
+            const responseDiv = document.getElementById('response');
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+    </script>
+</body>
+</html> 
