@@ -68,7 +68,15 @@ def init_db():
 # Root route
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('landing.html')
+
+@app.route('/register')
+def register_page():
+    return render_template('register.html')
+
+@app.route('/attendance')
+def attendance_page():
+    return render_template('attendance.html')
 
 # Database Models
 class User(db.Model):

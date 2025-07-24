@@ -1,19 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Face Recognition Attendance System</title>
+    <title>Register New User - Face Recognition Attendance System</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .nav-button {
+            background-color: #666;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
         }
         .form-container {
             margin: 20px 0;
             padding: 20px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            background-color: white;
         }
         .form-group {
             margin-bottom: 15px;
@@ -44,13 +57,6 @@
         button:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
-        }
-        #response {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            display: none;
         }
         .camera-container {
             margin: 20px 0;
@@ -87,10 +93,10 @@
     </style>
 </head>
 <body>
-    <h1>Face Recognition Attendance System</h1>
+    <a href="/" class="nav-button">← Back to Home</a>
+    <h1>Register New User</h1>
     
     <div class="form-container">
-        <h2>Register</h2>
         <div class="step">
             <h3>Step 1: Enter Your Details</h3>
             <form id="registerForm">
@@ -124,26 +130,9 @@
         </div>
     </div>
 
-    <div class="form-container">
-        <h2>Login with Face Recognition</h2>
-        <div class="camera-container">
-            <video id="loginVideo" autoplay playsinline></video>
-            <canvas id="loginCanvas"></canvas>
-            <div>
-                <button id="startLoginCamera">Start Camera</button>
-                <button id="recognizeFace" disabled>Recognize & Login</button>
-            </div>
-            <div id="loginStatus" class="status"></div>
-        </div>
-    </div>
-
-    <div id="response"></div>
-
     <script>
         let capturedImage = null;
-        let currentUser = null;
 
-        // Registration Camera Setup
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const startCameraBtn = document.getElementById('startCamera');
@@ -210,92 +199,24 @@
                     body: formData
                 });
                 const data = await response.json();
-                showResponse(data);
+                
                 if (response.ok) {
-                    enrollStatus.textContent = 'Registration successful! You can now login.';
+                    enrollStatus.textContent = 'Registration successful! You can now go back to home page and mark attendance.';
                     enrollStatus.className = 'status success';
                     // Clear the form
                     document.getElementById('registerForm').reset();
                     capturedImage = null;
                     registerUserBtn.disabled = true;
                     capturePhotoBtn.disabled = true;
+                } else {
+                    enrollStatus.textContent = data.error || 'Registration failed';
+                    enrollStatus.className = 'status error';
                 }
             } catch (err) {
                 enrollStatus.textContent = 'Error during registration';
                 enrollStatus.className = 'status error';
             }
         });
-
-        // Login Camera Setup
-        const loginVideo = document.getElementById('loginVideo');
-        const loginCanvas = document.getElementById('loginCanvas');
-        const startLoginCameraBtn = document.getElementById('startLoginCamera');
-        const recognizeFaceBtn = document.getElementById('recognizeFace');
-        const loginStatus = document.getElementById('loginStatus');
-
-        startLoginCameraBtn.addEventListener('click', async () => {
-            try {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Your browser does not support camera access');
-                }
-
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: 'user'
-                    }
-                });
-                
-                loginVideo.srcObject = stream;
-                loginVideo.onloadedmetadata = () => {
-                    loginVideo.play();
-                    loginStatus.textContent = 'Camera started successfully';
-                    loginStatus.className = 'status success';
-                    recognizeFaceBtn.disabled = false;
-                };
-            } catch (err) {
-                console.error('Camera error:', err);
-                loginStatus.textContent = `Camera error: ${err.message}`;
-                loginStatus.className = 'status error';
-            }
-        });
-
-        recognizeFaceBtn.addEventListener('click', async () => {
-            loginCanvas.width = loginVideo.videoWidth;
-            loginCanvas.height = loginVideo.videoHeight;
-            loginCanvas.getContext('2d').drawImage(loginVideo, 0, 0);
-            const imageBlob = await (await fetch(loginCanvas.toDataURL('image/jpeg'))).blob();
-            const formData = new FormData();
-            formData.append('image', imageBlob, 'face.jpg');
-
-            try {
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    loginStatus.textContent = `Welcome ${data.user.name}! Attendance marked.`;
-                    loginStatus.className = 'status success';
-                    localStorage.setItem('token', data.access_token);
-                    currentUser = data.user;
-                } else {
-                    loginStatus.textContent = data.error || 'Face not recognized';
-                    loginStatus.className = 'status error';
-                }
-                showResponse(data);
-            } catch (err) {
-                loginStatus.textContent = 'Error during login';
-                loginStatus.className = 'status error';
-            }
-        });
-
-        function showResponse(data) {
-            const responseDiv = document.getElementById('response');
-            responseDiv.style.display = 'block';
-            responseDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-        }
     </script>
 </body>
-</html> 
+</html>

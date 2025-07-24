@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mark Attendance - Face Recognition Attendance System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .nav-button {
+            background-color: #666;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .form-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: white;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .camera-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        #loginVideo {
+            width: 100%;
+            max-width: 640px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #loginCanvas {
+            display: none;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            display: none;
+        }
+        .attendance-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            display: none;
+        }
+        .attendance-info h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="nav-button">← Back to Home</a>
+    <h1>Mark Attendance</h1>
+    
+    <div class="form-container">
+        <h2>Login with Face Recognition</h2>
+        <div class="camera-container">
+            <video id="loginVideo" autoplay playsinline></video>
+            <canvas id="loginCanvas"></canvas>
+            <div>
+                <button id="startLoginCamera">Start Camera</button>
+                <button id="recognizeFace" disabled>Recognize & Mark Attendance</button>
+            </div>
+            <div id="loginStatus" class="status"></div>
+        </div>
+    </div>
+
+    <div id="attendanceInfo" class="attendance-info">
+        <h3>Attendance Details</h3>
+        <p id="attendanceDetails"></p>
+    </div>
+
+    <div id="response"></div>
+
+    <script>
+        let currentUser = null;
+
+        const loginVideo = document.getElementById('loginVideo');
+        const loginCanvas = document.getElementById('loginCanvas');
+        const startLoginCameraBtn = document.getElementById('startLoginCamera');
+        const recognizeFaceBtn = document.getElementById('recognizeFace');
+        const loginStatus = document.getElementById('loginStatus');
+        const attendanceInfo = document.getElementById('attendanceInfo');
+        const attendanceDetails = document.getElementById('attendanceDetails');
+
+        startLoginCameraBtn.addEventListener('click', async () => {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Your browser does not support camera access');
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+                
+                loginVideo.srcObject = stream;
+                loginVideo.onloadedmetadata = () => {
+                    loginVideo.play();
+                    loginStatus.textContent = 'Camera started successfully';
+                    loginStatus.className = 'status success';
+                    recognizeFaceBtn.disabled = false;
+                };
+            } catch (err) {
+                console.error('Camera error:', err);
+                loginStatus.textContent = `Camera error: ${err.message}`;
+                loginStatus.className = 'status error';
+            }
+        });
+
+        recognizeFaceBtn.addEventListener('click', async () => {
+            loginCanvas.width = loginVideo.videoWidth;
+            loginCanvas.height = loginVideo.videoHeight;
+            loginCanvas.getContext('2d').drawImage(loginVideo, 0, 0);
+            const imageBlob = await (await fetch(loginCanvas.toDataURL('image/jpeg'))).blob();
+            const formData = new FormData();
+            formData.append('image', imageBlob, 'face.jpg');
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    loginStatus.textContent = `Welcome ${data.user.name}! Attendance marked.`;
+                    loginStatus.className = 'status success';
+                    localStorage.setItem('token', data.access_token);
+                    currentUser = data.user;
+                    
+                    // Display attendance information
+                    attendanceInfo.style.display = 'block';
+                    const now = new Date();
+                    attendanceDetails.innerHTML = `
+                        <strong>Name:</strong> ${data.user.name}<br>
+                        <strong>Email:</strong> ${data.user.email}<br>
+                        <strong>Time:</strong> ${now.toLocaleString()}<br>
+                    `;
+                } else {
+                    loginStatus.textContent = data.error || 'Face not recognized';
+                    loginStatus.className = 'status error';
+                    attendanceInfo.style.display = 'none';
+                }
+            } catch (err) {
+                loginStatus.textContent = 'Error during attendance marking';
+                loginStatus.className = 'status error';
+                attendanceInfo.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
