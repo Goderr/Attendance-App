@@ -5,10 +5,10 @@
 attendance.db
 
 # Upload directories and user data
-uploads/
-instances/
-models/
-faces/
+backend/uploads/
+backend/instances/
+backend/models/
+backend/faces/
 
 
 # Environment and configuration files
@@ -17,6 +17,7 @@ faces/
 .env.production
 .env.development
 .venv
+backend/.venv/
 # Vercel deployment files
 .vercel
 
