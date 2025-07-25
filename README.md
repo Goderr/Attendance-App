@@ -1,6 +1,6 @@
 # Attendance App
 
-This project is a web application for managing attendance, primarily using Flask for the backend and HTML/CSS/JavaScript for the frontend. It incorporates face recognition for user authentication and attendance logging.
+This project is a web application for managing attendance, primarily using Flask for the backend and HTML(Not rerally a frontend guy :) ) for the frontend. It incorporates face recognition for user authentication and attendance logging.
 
 ## Future Development
 
