@@ -2,10 +2,6 @@
 
 This project is a web application for managing attendance, primarily using Flask for the backend and HTML/CSS/JavaScript for the frontend. It incorporates face recognition for user authentication and attendance logging.
 
-## Future Development
-
-This project is planned to be extended into a React Native mobile application, providing a native experience for attendance management.
-
 ## How to Run Locally
 
 To run this project locally, follow these steps:
@@ -41,3 +37,7 @@ To run this project locally, follow these steps:
 
 3.  **Access the frontend:**
     Open your web browser and navigate to the address where the Flask application is running (e.g., `http://127.0.0.1:5000`).
+
+## Future Development
+
+This project is planned to be extended into a React Native mobile application, providing a native experience for attendance management.
