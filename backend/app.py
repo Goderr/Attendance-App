@@ -67,8 +67,63 @@ def init_db():
 
 # Root route
 @app.route('/')
-def home():
+def index():
     return render_template('landing.html')
+
+@app.route('/attendance_history')
+def attendance_history():
+    # No JWT required for viewing the page itself
+    return render_template('attendance_history.html')
+
+@app.route('/get_attendance_history', methods=['GET'])
+@jwt_required()
+def get_attendance_history():
+    try:
+        # Get the current user ID from the JWT token (it will be a string now)
+        current_user_id = get_jwt_identity()
+        
+        # Convert back to integer for database query
+        user_id_int = int(current_user_id)
+        
+        # Get database connection
+        db_conn = get_db()
+        cursor = db_conn.cursor()
+        
+        # Get attendance records
+        cursor.execute('''
+            SELECT 
+                a.id,
+                a.timestamp,
+                a.type,
+                a.status,
+                u.name
+            FROM attendance a 
+            JOIN users u ON a.user_id = u.id 
+            WHERE a.user_id = ? 
+            ORDER BY a.timestamp DESC
+        ''', (user_id_int,))
+        
+        attendance_records = cursor.fetchall()
+        
+        # Format the response
+        history_data = []
+        for record in attendance_records:
+            history_data.append({
+                'id': record['id'],
+                'timestamp': record['timestamp'],
+                'type': record['type'],
+                'status': record['status'],
+                'name': record['name']
+            })
+        
+        return jsonify({'history': history_data}), 200
+        
+    except ValueError:
+        return jsonify({'error': 'Invalid user ID format'}), 400
+    except Exception as e:
+        print(f"Error in get_attendance_history: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/register')
 def register_page():
@@ -203,8 +258,8 @@ def login():
         for user in users:
             known_encoding = np.frombuffer(bytes.fromhex(user['face_encoding']), dtype=np.float64)
             if compare_faces(known_encoding, unknown_encoding):
-                # Generate JWT token using flask-jwt-extended
-                access_token = create_access_token(identity=user['id'])
+                # Generate JWT token - ENSURE ID IS STRING
+                access_token = create_access_token(identity=str(user['id']))  # Convert to string
                 
                 # Record attendance with current timestamp
                 current_time = datetime.utcnow()
@@ -228,6 +283,7 @@ def login():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/enroll_face', methods=['POST'])
 @jwt_required()

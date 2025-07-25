@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Attendance History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .nav-button {
+            background-color: #666;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .error {
+            color: #a94442;
+            background-color: #f2dede;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .status-on-time {
+            color: #5cb85c;
+            font-weight: bold;
+        }
+        .status-late {
+            color: #d9534f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="nav-button">← Back to Attendance</a>
+    <h1>Attendance History</h1>
+    
+    <div id="loadingMessage" class="loading">Loading attendance history...</div>
+    <div id="statusMessage" class="error" style="display:none;"></div>
+    
+    <table id="attendanceTable" style="display:none;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody id="attendanceTableBody">
+        </tbody>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const tableBody = document.getElementById('attendanceTableBody');
+            const attendanceTable = document.getElementById('attendanceTable');
+            const statusMessage = document.getElementById('statusMessage');
+            const loadingMessage = document.getElementById('loadingMessage');
+            
+            // Get token from localStorage
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                loadingMessage.style.display = 'none';
+                statusMessage.textContent = 'No authentication token found. Please login first.';
+                statusMessage.style.display = 'block';
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+                return;
+            }
+
+            try {
+                const response = await fetch('/get_attendance_history', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                loadingMessage.style.display = 'none';
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.history && data.history.length > 0) {
+                    // Show the table
+                    attendanceTable.style.display = 'table';
+                    
+                    // Populate table rows
+                    data.history.forEach(record => {
+                        const row = document.createElement('tr');
+                        
+                        // Parse timestamp
+                        const timestamp = new Date(record.timestamp);
+                        const date = timestamp.toLocaleDateString();
+                        const time = timestamp.toLocaleTimeString();
+                        
+                        // Create status class
+                        const statusClass = record.status === 'on_time' ? 'status-on-time' : 'status-late';
+                        
+                        row.innerHTML = `
+                            <td>${date}</td>
+                            <td>${time}</td>
+                            <td>${record.type}</td>
+                            <td class="${statusClass}">${record.status}</td>
+                            <td>${record.name}</td>
+                        `;
+                        
+                        tableBody.appendChild(row);
+                    });
+                } else {
+                    statusMessage.textContent = 'No attendance records found.';
+                    statusMessage.style.display = 'block';
+                }
+
+            } catch (error) {
+                loadingMessage.style.display = 'none';
+                console.error('Error fetching attendance history:', error);
+                
+                if (error.message.includes('401')) {
+                    statusMessage.textContent = 'Authentication failed. Please login again.';
+                    setTimeout(() => {
+                        localStorage.removeItem('token');
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                }
+                
+                statusMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

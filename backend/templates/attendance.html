@@ -165,13 +165,28 @@
             try {
                 const response = await fetch('/login', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
                 const data = await response.json();
                 if (response.ok) {
                     loginStatus.textContent = `Welcome ${data.user.name}! Attendance marked.`;
                     loginStatus.className = 'status success';
-                    localStorage.setItem('token', data.access_token);
+                    // Store token in localStorage and log it for debugging
+                    console.log('Received token:', data.access_token);
+                    
+                    // Validate token format before storing
+                    if (data.access_token && typeof data.access_token === 'string' && data.access_token.includes('.')) {
+                        localStorage.setItem('token', data.access_token);
+                        console.log('Stored token:', localStorage.getItem('token'));
+                    } else {
+                        console.error('Invalid token format received:', data.access_token);
+                        loginStatus.textContent = 'Error: Invalid authentication token received.';
+                        loginStatus.className = 'status error';
+                        return;
+                    }
                     currentUser = data.user;
                     
                     // Display attendance information
@@ -182,6 +197,16 @@
                         <strong>Email:</strong> ${data.user.email}<br>
                         <strong>Time:</strong> ${now.toLocaleString()}<br>
                     `;
+
+                    // Show attendance history button only if it doesn't exist
+                    if (!document.querySelector('#attendanceHistoryBtn')) {
+                        const historyButton = document.createElement('button');
+                        historyButton.id = 'attendanceHistoryBtn';
+                        historyButton.textContent = 'View Attendance History';
+                        historyButton.onclick = () => { window.location.href = '/attendance_history'; };
+                        attendanceInfo.appendChild(historyButton);
+                    }
+
                 } else {
                     loginStatus.textContent = data.error || 'Face not recognized';
                     loginStatus.className = 'status error';
